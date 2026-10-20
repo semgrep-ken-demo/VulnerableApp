@@ -2,11 +2,15 @@ version: "3.9"
 services:
     VulnerableApp-base:
       image: sasanlabs/owasp-vulnerableapp:latest
+      security_opt:
+        - no-new-privileges:true
       networks:
         - app_net
       
     VulnerableApp-jsp:
       image: sasanlabs/owasp-vulnerableapp-jsp:latest
+      security_opt:
+        - no-new-privileges:true
       networks:
         - app_net
  
@@ -14,6 +18,8 @@ services:
       image: sasanlabs/owasp-vulnerableapp-php:latest
       depends_on:
         - mongodb
+      security_opt:
+        - no-new-privileges:true
       networks:
         - app_net
 
@@ -23,6 +29,8 @@ services:
        - "27017:27017"
       volumes:
        - mongodb_data:/data/db
+      security_opt:
+        - no-new-privileges:true
       networks:
         app_net:
           aliases:
@@ -34,6 +42,8 @@ services:
        - "11434:11434"
       volumes:
        - ollama_data:/root/.ollama
+      security_opt:
+        - no-new-privileges:true
       healthcheck:
         test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
         interval: 10s
@@ -50,6 +60,8 @@ services:
       depends_on:
         ollama:
           condition: service_healthy
+      security_opt:
+        - no-new-privileges:true
       environment:
        - OLLAMA_HOST=http://ollama:11434
        - OLLAMA_MODEL=${OLLAMA_MODEL:-phi3:mini}
@@ -74,6 +86,8 @@ services:
           condition: service_healthy
         ollama-model-init:
           condition: service_completed_successfully
+      security_opt:
+        - no-new-privileges:true
       ports:
        - "8000:8000"
       environment:
@@ -89,6 +103,8 @@ services:
     mailpit:
       image: axllent/mailpit:v1.30.1
       restart: unless-stopped
+      security_opt:
+        - no-new-privileges:true
       expose:
         - "1025"
       ports:
@@ -114,6 +130,8 @@ services:
         - llmforge
         - mailpit
       image: sasanlabs/owasp-vulnerableapp-facade:latest
+      security_opt:
+        - no-new-privileges:true
       volumes:
        - ./templates:/etc/nginx/templates
       ports:
