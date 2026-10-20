@@ -167,6 +167,7 @@ dependencies {
     // https://mvnrepository.com/artifact/commons-codec/commons-codec
     implementation group: 'commons-codec', name: 'commons-codec', version: '1.15'
 
+    implementation 'org.owasp.encoder:encoder:1.2.3'
     implementation 'com.unboundid:unboundid-ldapsdk:6.0.5'
     implementation 'org.springframework.security:spring-security-crypto'
 
