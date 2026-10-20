@@ -1,6 +1,7 @@
 package org.sasanlabs.internal.utility;
 
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -12,6 +13,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import org.sasanlabs.internal.utility.exception.EncryptionException;
@@ -84,20 +86,48 @@ public class EncryptionUtils {
 
     public static String encrypt(String plaintext, SecretKey key) throws EncryptionException {
         try {
-            // VULNERABILITY NOTE: ECB mode does not use an IV and reveals patterns (CWE-327)
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            cipher.init(Cipher.ENCRYPT_MODE, key);
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            byte[] iv = new byte[16];
+            new SecureRandom().nextBytes(iv);
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
+            cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec);
 
             byte[] encrypted = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));
-            return java.util.Base64.getEncoder().encodeToString(encrypted);
+            byte[] ivAndCiphertext = new byte[iv.length + encrypted.length];
+            System.arraycopy(iv, 0, ivAndCiphertext, 0, iv.length);
+            System.arraycopy(encrypted, 0, ivAndCiphertext, iv.length, encrypted.length);
+            return java.util.Base64.getEncoder().encodeToString(ivAndCiphertext);
 
         } catch (NoSuchPaddingException | NoSuchAlgorithmException e) {
             throw new EncryptionException("AES configuration not found ", e);
-        } catch (InvalidKeyException e) {
+        } catch (InvalidKeyException | InvalidAlgorithmParameterException e) {
             throw new EncryptionException("The provided key is invalid for AES encryption", e);
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             throw new EncryptionException(
                     "AES encryption failed due to block size or padding issues", e);
+        }
+    }
+
+    public static String decrypt(String ciphertext, SecretKey key) throws EncryptionException {
+        try {
+            byte[] decoded = java.util.Base64.getDecoder().decode(ciphertext);
+            byte[] iv = new byte[16];
+            System.arraycopy(decoded, 0, iv, 0, iv.length);
+            byte[] encrypted = new byte[decoded.length - iv.length];
+            System.arraycopy(decoded, iv.length, encrypted, 0, encrypted.length);
+
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, key, new IvParameterSpec(iv));
+            byte[] decrypted = cipher.doFinal(encrypted);
+            return new String(decrypted, StandardCharsets.UTF_8);
+
+        } catch (NoSuchPaddingException | NoSuchAlgorithmException e) {
+            throw new EncryptionException("AES configuration not found ", e);
+        } catch (InvalidKeyException | InvalidAlgorithmParameterException e) {
+            throw new EncryptionException("The provided key is invalid for AES decryption", e);
+        } catch (IllegalBlockSizeException | BadPaddingException e) {
+            throw new EncryptionException(
+                    "AES decryption failed due to block size or padding issues", e);
         }
     }
 }
