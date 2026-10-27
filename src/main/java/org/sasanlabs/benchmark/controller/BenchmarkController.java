@@ -1,7 +1,9 @@
 package org.sasanlabs.benchmark.controller;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -9,11 +11,13 @@ import org.sasanlabs.benchmark.model.BenchmarkResult;
 import org.sasanlabs.benchmark.model.ScannerFindings;
 import org.sasanlabs.benchmark.service.BenchmarkResultWriter;
 import org.sasanlabs.benchmark.service.BenchmarkService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -28,15 +32,26 @@ public class BenchmarkController {
 
     private final BenchmarkService benchmarkService;
     private final BenchmarkResultWriter benchmarkResultWriter;
+    private final String apiKey;
 
     public BenchmarkController(
-            BenchmarkService benchmarkService, BenchmarkResultWriter benchmarkResultWriter) {
+            BenchmarkService benchmarkService,
+            BenchmarkResultWriter benchmarkResultWriter,
+            @Value("${benchmark.api-key}") String apiKey) {
         this.benchmarkService = benchmarkService;
         this.benchmarkResultWriter = benchmarkResultWriter;
+        this.apiKey = apiKey;
     }
 
     @PostMapping("/scanner/benchmark")
-    public ResponseEntity<?> benchmark(@RequestBody ScannerFindings input) throws IOException {
+    public ResponseEntity<?> benchmark(
+            @RequestHeader(value = "X-Benchmark-Api-Key", required = false) String providedKey,
+            @RequestBody ScannerFindings input)
+            throws IOException {
+        if (!isValidApiKey(providedKey)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Missing or invalid API key"));
+        }
         if (input == null || input.getTool() == null || input.getTool().trim().isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Field 'tool' is required and must be non-empty"));
@@ -65,5 +80,14 @@ public class BenchmarkController {
         }
 
         return ResponseEntity.ok(result);
+    }
+
+    private boolean isValidApiKey(String providedKey) {
+        if (providedKey == null || apiKey == null || apiKey.isBlank()) {
+            return false;
+        }
+        byte[] expected = apiKey.getBytes(StandardCharsets.UTF_8);
+        byte[] actual = providedKey.getBytes(StandardCharsets.UTF_8);
+        return MessageDigest.isEqual(expected, actual);
     }
 }

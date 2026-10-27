@@ -28,6 +28,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @ExtendWith(MockitoExtension.class)
 class BenchmarkControllerTest {
 
+    private static final String TEST_API_KEY = "test-secret-key";
+
     @Mock private BenchmarkService benchmarkService;
 
     @Mock private BenchmarkResultWriter benchmarkResultWriter;
@@ -37,7 +39,7 @@ class BenchmarkControllerTest {
     @BeforeEach
     void setUp() {
         BenchmarkController controller =
-                new BenchmarkController(benchmarkService, benchmarkResultWriter);
+                new BenchmarkController(benchmarkService, benchmarkResultWriter, TEST_API_KEY);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
     }
 
@@ -56,6 +58,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-Benchmark-Api-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isOk())
@@ -68,6 +71,31 @@ class BenchmarkControllerTest {
     }
 
     @Test
+    void missingApiKey_returns401() throws Exception {
+        String body = "{\"tool\":\"ZAP\",\"findings\":[]}";
+
+        mockMvc.perform(
+                        post("/scanner/benchmark")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Missing or invalid API key"));
+    }
+
+    @Test
+    void wrongApiKey_returns401() throws Exception {
+        String body = "{\"tool\":\"ZAP\",\"findings\":[]}";
+
+        mockMvc.perform(
+                        post("/scanner/benchmark")
+                                .header("X-Benchmark-Api-Key", "wrong-key")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").value("Missing or invalid API key"));
+    }
+
+    @Test
     void missingToolField_returns400() throws Exception {
         String body =
                 "{\"findings\":["
@@ -75,6 +103,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-Benchmark-Api-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isBadRequest())
@@ -89,6 +118,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-Benchmark-Api-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isBadRequest());
@@ -100,6 +130,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-Benchmark-Api-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isBadRequest());
@@ -109,6 +140,7 @@ class BenchmarkControllerTest {
     void malformedJson_returns400() throws Exception {
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-Benchmark-Api-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{not valid json"))
                 .andExpect(status().isBadRequest());
@@ -127,6 +159,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-Benchmark-Api-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isInternalServerError())
