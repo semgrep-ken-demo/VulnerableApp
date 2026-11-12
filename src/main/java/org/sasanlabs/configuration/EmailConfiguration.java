@@ -15,6 +15,8 @@ public class EmailConfiguration {
 
     private String baseUrl;
 
+    private String apiKey;
+
     public String getFrom() {
         return StringUtils.defaultIfBlank(from, DEFAULT_FROM);
     }
@@ -29,6 +31,14 @@ public class EmailConfiguration {
 
     public void setBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
+    }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
     }
 
     public void validate() {
