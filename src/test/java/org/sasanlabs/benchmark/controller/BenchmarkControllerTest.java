@@ -28,6 +28,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 @ExtendWith(MockitoExtension.class)
 class BenchmarkControllerTest {
 
+    private static final String TEST_API_KEY = "test-secret-key";
+
     @Mock private BenchmarkService benchmarkService;
 
     @Mock private BenchmarkResultWriter benchmarkResultWriter;
@@ -37,8 +39,37 @@ class BenchmarkControllerTest {
     @BeforeEach
     void setUp() {
         BenchmarkController controller =
-                new BenchmarkController(benchmarkService, benchmarkResultWriter);
+                new BenchmarkController(benchmarkService, benchmarkResultWriter, TEST_API_KEY);
         mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+    }
+
+    @Test
+    void missingApiKey_returns401() throws Exception {
+        String body =
+                "{\"tool\":\"ZAP\",\"findings\":["
+                        + "{\"url\":\"/SQLInjection/LEVEL_1\",\"type\":\"BLIND_SQL_INJECTION\"}]}";
+
+        mockMvc.perform(
+                        post("/scanner/benchmark")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    void wrongApiKey_returns401() throws Exception {
+        String body =
+                "{\"tool\":\"ZAP\",\"findings\":["
+                        + "{\"url\":\"/SQLInjection/LEVEL_1\",\"type\":\"BLIND_SQL_INJECTION\"}]}";
+
+        mockMvc.perform(
+                        post("/scanner/benchmark")
+                                .header("X-API-Key", "wrong-key")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
     }
 
     @Test
@@ -56,6 +87,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-API-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isOk())
@@ -75,6 +107,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-API-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isBadRequest())
@@ -89,6 +122,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-API-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isBadRequest());
@@ -100,6 +134,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-API-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isBadRequest());
@@ -109,6 +144,7 @@ class BenchmarkControllerTest {
     void malformedJson_returns400() throws Exception {
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-API-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{not valid json"))
                 .andExpect(status().isBadRequest());
@@ -127,6 +163,7 @@ class BenchmarkControllerTest {
 
         mockMvc.perform(
                         post("/scanner/benchmark")
+                                .header("X-API-Key", TEST_API_KEY)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(body))
                 .andExpect(status().isInternalServerError())
