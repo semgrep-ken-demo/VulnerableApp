@@ -9,11 +9,13 @@ import org.sasanlabs.benchmark.model.BenchmarkResult;
 import org.sasanlabs.benchmark.model.ScannerFindings;
 import org.sasanlabs.benchmark.service.BenchmarkResultWriter;
 import org.sasanlabs.benchmark.service.BenchmarkService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -28,15 +30,26 @@ public class BenchmarkController {
 
     private final BenchmarkService benchmarkService;
     private final BenchmarkResultWriter benchmarkResultWriter;
+    private final String apiKey;
 
     public BenchmarkController(
-            BenchmarkService benchmarkService, BenchmarkResultWriter benchmarkResultWriter) {
+            BenchmarkService benchmarkService,
+            BenchmarkResultWriter benchmarkResultWriter,
+            @Value("${benchmark.api-key}") String apiKey) {
         this.benchmarkService = benchmarkService;
         this.benchmarkResultWriter = benchmarkResultWriter;
+        this.apiKey = apiKey;
     }
 
     @PostMapping("/scanner/benchmark")
-    public ResponseEntity<?> benchmark(@RequestBody ScannerFindings input) throws IOException {
+    public ResponseEntity<?> benchmark(
+            @RequestHeader(value = "X-API-Key", required = false) String requestApiKey,
+            @RequestBody ScannerFindings input)
+            throws IOException {
+        if (requestApiKey == null || !apiKey.equals(requestApiKey)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("error", "Valid API key required in X-API-Key header"));
+        }
         if (input == null || input.getTool() == null || input.getTool().trim().isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Field 'tool' is required and must be non-empty"));
